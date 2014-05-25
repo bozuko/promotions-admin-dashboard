@@ -1,0 +1,52 @@
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #d8d8d8;
+}
+.stats-table th,
+.stats-table td
+{
+  padding: 4px 5px;
+  font-size: 15px;
+  border: 1px solid #d8d8d8;
+}
+.stats-table thead th {
+  text-align: left;
+  background: #f3f3f3;
+}
+.stats-table thead th {
+  text-align: left;
+  background: #f3f3f3;
+}
+
+.big-stats {
+  overflow: hidden;
+  margin: 1em 0;
+}
+.big-stat {
+  float: left;
+  width: 33%;
+  text-align: center;
+}
+.big-stat .number {
+  font-size: 30px;
+  line-height: 1.2em;
+}
+.big-stat .text {
+  text-transform: uppercase;
+  color: #999;
+  font-size: 12px;
+}
+.promotions-heading {
+  margin-left: 0;
+}
+h2.promotions-heading {
+  font-size: 22px;
+  margin: .5em 0;
+  color: #999;
+  padding: 0;
+  font-style: italic;
+}
+.chart-container {
+  height: 200px;
+}
