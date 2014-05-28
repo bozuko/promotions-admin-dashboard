@@ -46,13 +46,19 @@ class PromotionsDashboard_Dashboard extends Snap_Wordpress_Plugin
     $this->analytics = Snap::inst('Promotions_Analytics');
     
     // add our own
-    add_meta_box('dashboard_promotions_main', 'Promotion', array(&$this, 'main_widget'), 'dashboard', 'core', 'high');
+    
+    add_meta_box('dashboard_promotions_main', 'Promotion', array(&$this, 'main_widget'), 'dashboard', 'normal', 'high');
     if( !$this->promotion_id ){
       return;
     }
     
     // how about some charts, eh?
     add_meta_box('dashboard_promotions_charts', 'Analytics', array(&$this, 'charts'), 'dashboard', 'side', 'high');
+    
+    // what about the download box?
+    if( current_user_can('download_promotion_entries') ){
+      add_meta_box('dashboard_promotions_download', 'Download', array(&$this, 'download'), 'dashboard','normal');
+    }
     
   }
   
@@ -81,7 +87,7 @@ class PromotionsDashboard_Dashboard extends Snap_Wordpress_Plugin
     </select>
     <?php
     
-    do_action('promotions/analytics/statistics');
+    do_action('promotions/analytics/statistics', $this->promotion_id );
   }
   
   public function charts()
@@ -91,39 +97,76 @@ class PromotionsDashboard_Dashboard extends Snap_Wordpress_Plugin
     wp_enqueue_script('chartjs', $chart_lib.'/dx.chartjs.js', array('globalize'), '13.2.9', true);
     wp_enqueue_script('promotions-charts', PROMOTIONS_DASHBOARD_URI.'/assets/javascripts/promotions-charts.js', array('chartjs'), '1.0', true);
     
-    // lets get our charts...
-    $metrics = $this->analytics->get_metrics();
+    $entry_metrics = array(
+      'registration_entries'
+    );
+    if( Snap::inst('Promotions_Functions')->is_enabled('returnuser', $this->promotion_id ) ){
+      $entry_metrics[] = 'return_entries';
+    }
+    
+    $charts = apply_filters( 'promotions/dashboard/charts', array('combined-entries' => array(
+      'title'   => 'Entries',
+      'metrics' => apply_filters('promotions/dashboard/charts/entries/metrics', $entry_metrics)
+    )), $this->promotion_id );
+    
     
     $start = Snap::inst('Promotions_Functions')->get_start( $this->promotion_id );
-    $end = Snap::inst('Promotions_Functions')->get_start( $this->promotion_id );
+    $end = Snap::inst('Promotions_Functions')->get_end( $this->promotion_id );
     $now = Snap::inst('Promotions_Functions')->now();
     
     if( $now < $end ) $end = $now;
     
-    foreach( $metrics as $metric => $title ){
-      $this->chart( $metric, $title, $start, $end );
+    foreach( $charts as $name => $config ){
+      $this->chart( $name, $config, $start, $end );
     }
     
   }
   
-  public function chart( $metric, $meta, $start, $end )
+  public function chart( $name, $config, $start, $end )
   {
-    $analytics = 
-    $series = array(
-      'metric'    => $metric,
-      'meta'      => $meta,
-      'data'      => array(
-        'hour'      => $this->analytics->get( $this->promotion_id, $metric, 'hour'),
-        'day'       => $this->analytics->get( $this->promotion_id, $metric, 'day'),
-        'week'      => $this->analytics->get( $this->promotion_id, $metric, 'week')
-      )
-    );
+    if( @$config['javascript'] ){
+      wp_enqueue_script('chart-'.$name, $config['javascript'] );
+    }
+    
+    if( @$config['metrics'] ){
+      $config['data'] = array();
+      
+      $metrics = Snap::inst('Promotions_Analytics')->get_metrics();
+      $config['metric_configs']= array();
+      
+      foreach( $config['metrics'] as $metric ){
+        
+        $config['metric_configs'][$metric] = $metrics[$metric];
+        $config['data'][$metric] = array(
+          'hour'      => $this->analytics->get( $this->promotion_id, $metric, 'hour'),
+          'day'       => $this->analytics->get( $this->promotion_id, $metric, 'day'),
+          'week'      => $this->analytics->get( $this->promotion_id, $metric, 'week')
+        );
+      }
+    }
+    
     ?>
     <div class="chart-wrapper">
-      <h2 class="promotions-heading"><?= $meta['label'] ?></h2>
-      <div class="chart-container" data-metric="<?= $metric ?>" data-series="<?= esc_attr(json_encode( $series )) ?>">
-      </div>
+      <h2 class="promotions-heading"><?= $config['title'] ?></h2>
+      <div class="chart-container"
+           data-chart="<?= $name ?>"
+           data-chart-config="<?= esc_attr(json_encode( $config )) ?>"
+      ></div>
     </div>
+    <?php
+  }
+  
+  public function download()
+  {
+    ?>
+    <form action="?" method="POST">
+      <?php
+      do_action('promotions/download/form', $this->promotion_id);
+      wp_nonce_field('download_promotion_entries', '_action');
+      ?>
+      <input type="hidden" name="promotion" value="<?= $this->promotion_id ?>" />
+      <button class="button button-primary">Download Entries</button>
+    </form>
     <?php
   }
   
@@ -138,7 +181,7 @@ class PromotionsDashboard_Dashboard extends Snap_Wordpress_Plugin
     $entries = $this->analytics
       ->get_all( $this->promotion_id, 'entries' );
     ?>
-    <div class="big-stats">
+    <div class="big-stats big-stats-two">
       <div class="big-stat">
         <div class="number">
         <?= $registrations ?>
@@ -164,19 +207,21 @@ class PromotionsDashboard_Dashboard extends Snap_Wordpress_Plugin
   public function weekly_statistics()
   {
     
-    $registrations = $this->analytics
-      ->get( $this->promotion_id, 'registrations', 'week', 'all' );
-      
-    $entries = $this->analytics
-      ->get( $this->promotion_id, 'registration_entries', 'week', 'all' );
-      
-    $reg_map = array();
-    foreach( $registrations as $reg ){
-      $reg_map[$reg->unit] = $reg->total;
-    }
-    $entry_map = array();
-    foreach( $entries as $entry ){
-      $entry_map[$entry->unit] = $entry->total;
+    $weekly_stats = array(
+      'registrations'   => 'Registrations',
+      'entries'         => 'Entries'
+    );
+    
+    $weekly_stats = apply_filters('promotions/analytics/weekly_statistics', $weekly_stats, $this->promotion_id);
+    
+    $map = array();
+    
+    foreach( $weekly_stats as $name => $label ){
+      $stats = $this->analytics->get($this->promotion_id, $name, 'week');
+      $map[$name] = array();
+      foreach( $stats as $stat ){
+        $map[$name][$stat->unit] = $stat->total;
+      }
     }
     
     $start = Snap::inst('Promotions_Functions')->get_start( $this->promotion_id );
@@ -190,8 +235,13 @@ class PromotionsDashboard_Dashboard extends Snap_Wordpress_Plugin
       <thead>
         <tr>
           <th>Week of</th>
-          <th>Registrations</th>
-          <th>Entries</th>
+          <?php
+          foreach( $weekly_stats as $label ){
+            ?>
+            <th><?= $label ?></th>
+            <?php
+          }
+          ?>
         </tr>
       </thead>
       <tbody>
@@ -205,8 +255,13 @@ class PromotionsDashboard_Dashboard extends Snap_Wordpress_Plugin
           ?>
           <tr>
             <td><?= $current->format('M d, Y') ?></td>
-            <td><?= isset($reg_map[$key]) ? $reg_map[$key] : '0' ?></td>
-            <td><?= isset($entry_map[$key]) ? $entry_map[$key] : '0' ?></td>
+            <?php
+            foreach( $weekly_stats as $name => $label ) {
+              ?>
+            <td><?= isset($map[$name][$key]) ? $map[$name][$key] : '0' ?></td>
+              <?php
+            }
+            ?>
           </tr>
           <?php
           $current->add( $interval );

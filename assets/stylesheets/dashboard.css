@@ -23,9 +23,24 @@
   overflow: hidden;
   margin: 1em 0;
 }
-.big-stat {
+
+.big-stats-two .big-stat,
+.big-stats-three .big-stat
+.big-stats-four .big-stat{
   float: left;
-  width: 33%;
+}
+
+.big-stats-two .big-stat {
+  width: 50%;
+}
+.big-stats-three .big-stat {
+  width: 33.333%;
+}
+.big-stats-four .big-stat {
+  width: 25%;
+}
+
+.big-stat {
   text-align: center;
 }
 .big-stat .number {
@@ -48,5 +63,35 @@ h2.promotions-heading {
   font-style: italic;
 }
 .chart-container {
-  height: 200px;
+  height: 250px;
+  position: relative;
+}
+.chart-container .no-data {
+  position: absolute;
+  top: 50%; left: 0;
+  font-size: 14px;
+  margin-top: -.6em;
+  text-align: center;
+  width: 100%;
+  color: #999;
+}
+.chart-tooltip {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #fff;
+  z-index: 1000;
+  padding: 10px;
+  background: rgba(255,255,255,0.8);
+  border: 1px solid #ccc;
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.25);
+}
+.chart-tooltip h3 {
+  text-align: center;
+  margin: 0;
+}
+.chart-tooltip th {
+  text-align: left;
+  padding-right: 10px;
 }
