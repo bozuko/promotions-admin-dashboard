@@ -7,15 +7,21 @@ class PromotionsDashboard_Download extends Snap_Wordpress_Plugin
   protected $string_enclosure = '"';
   protected $fp = null;
   protected $chunk_size = 500;
+  protected $is_download = false;
   
-  /**
-   * @wp.action     promotions/register_fields
-   * @wp.priority   1000
-   */
-  public function init()
+  public function __construct()
+  {
+    parent::__construct();
+    $this->init();
+  }
+  protected function init()
   {
     if( !$_SERVER['REQUEST_METHOD'] == 'POST' || !isset($_POST['_action']) ) return;
     if( !wp_verify_nonce($_POST['_action'], 'download_promotion_entries') ) return;
+    
+    if( !current_user_can('download_promotion_entries') ) {
+      wp_die("I'm sorry Dave, I'm afraid I can't do that.");
+    }
     
     $promotion = get_post( $_POST['promotion'] );
     if( !$promotion || $promotion->post_type != 'promotion' ){
@@ -23,11 +29,28 @@ class PromotionsDashboard_Download extends Snap_Wordpress_Plugin
       return;
     }
     
+    $this->is_download = true;
     $this->promotion = $promotion;
+    
+    global $post;
+    $post = $promotion;
+    setup_postdata( $post );
+  }
+  
+  /**
+   * @wp.action     promotions/register_fields
+   * @wp.priority   1000
+   */
+  public function download()
+  {
+    if( !$this->is_download ) return;
+    
+    
+    $now = Snap::inst('Promotions_Functions')->now();
     
     // lets set the headers
     header('Content-Type: text/csv');
-    $filename = $promotion->post_name.'-'.date('Y-m-d').'.csv';
+    $filename = $this->promotion->post_name.'-'.$now->format('Y-m-d').'.csv';
     header('Content-Disposition: attachment; filename="'.$filename.'"');
     
     $this->fp = fopen('php://output', $w);
@@ -76,6 +99,7 @@ SQL;
     $wpdb->show_errors( true );
     
     ini_set('memory_limit', '256M');
+    set_time_limit(0);
     
     global $wp_actions;
     

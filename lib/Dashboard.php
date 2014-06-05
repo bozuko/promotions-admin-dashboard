@@ -30,18 +30,45 @@ class PromotionsDashboard_Dashboard extends Snap_Wordpress_Plugin
     remove_meta_box( 'dashboard_plugins',       'dashboard', 'normal' );    //Plugins
     remove_meta_box( 'dashboard_activity',      'dashboard', 'normal' );    //Plugins
     
-    wp_enqueue_script('promotions-dashboard', PROMOTIONS_DASHBOARD_URI.'/assets/javascripts/dashboard.js', array('jquery'));
+    wp_enqueue_script('promotions-dashboard', PROMOTIONS_DASHBOARD_URI.'/assets/javascripts/dashboard.js', array('jquery'), '1.0', true);
     
     // check for the current promotion
     $this->promotions = get_posts(array(
       'post_type'     => 'promotion'
     ));
     
+    usort( $this->promotions, function($a,$b){
+      $fn = Snap::inst('Promotions_Functions');
+      $now = $fn->now();
+      $a_start = $fn->get_start( $a->ID );
+      $b_start = $fn->get_start( $b->ID );
+      
+      if( $now > $a_start && $now < $b_start ){
+        return 1;
+      }
+      if( $now > $b_start && $now < $a_start ){
+        return -1;
+      }
+      return $a_start > $b_start ? 1 : -1;
+      
+    });
+    
     if( ($promotion_id = @$_GET['promotion_id']) ){
       $this->promotion_id = $promotion_id;
     }
     if( !$this->promotion_id && count( $this->promotions ) ){
-      $this->promotion_id = $this->promotions[0]->ID;
+      $fn = Snap::inst('Promotions_Functions');
+      $now = $fn->now();
+      foreach( $this->promotions as $p ){
+        $s = $fn->get_start( $p->ID );
+        $e = $fn->get_end( $p->ID );
+        if( $now >= $s ){
+          $this->promotion_id = $p->ID;
+        }
+      }
+      if( !$this->promotion_id ){
+        $this->promotion_id = $this->promotions[0]->ID;
+      }
     }
     $this->analytics = Snap::inst('Promotions_Analytics');
     
@@ -92,7 +119,7 @@ class PromotionsDashboard_Dashboard extends Snap_Wordpress_Plugin
   
   public function charts()
   {
-    $chart_lib = PROMOTIONS_DASHBOARD_URI.'/assets/DevExpressChartJS-13.2.9/Lib/js';
+    $chart_lib = PROMOTIONS_DASHBOARD_URI.'assets/DevExpressChartJS-13.2.9/Lib/js';
     wp_enqueue_script('globalize', $chart_lib.'/globalize.min.js', array('jquery'), '13.2.9', true);
     wp_enqueue_script('chartjs', $chart_lib.'/dx.chartjs.js', array('globalize'), '13.2.9', true);
     wp_enqueue_script('promotions-charts', PROMOTIONS_DASHBOARD_URI.'/assets/javascripts/promotions-charts.js', array('chartjs'), '1.0', true);
