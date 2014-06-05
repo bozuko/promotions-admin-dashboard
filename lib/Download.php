@@ -31,6 +31,7 @@ class PromotionsDashboard_Download extends Snap_Wordpress_Plugin
     
     $this->is_download = true;
     $this->promotion = $promotion;
+    $now = Snap::inst('Promotions_Functions')->now();
     
     global $post;
     $post = $promotion;
