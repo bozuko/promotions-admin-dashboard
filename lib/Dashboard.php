@@ -186,7 +186,7 @@ class PromotionsDashboard_Dashboard extends Snap_Wordpress_Plugin
   public function download()
   {
     ?>
-    <form action="?" method="POST">
+    <form action="?" method="POST" enctype="multipart/form-data">
       <?php
       do_action('promotions/download/form', $this->promotion_id);
       wp_nonce_field('download_promotion_entries', '_action');

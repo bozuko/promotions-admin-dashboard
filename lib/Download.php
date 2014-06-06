@@ -16,7 +16,7 @@ class PromotionsDashboard_Download extends Snap_Wordpress_Plugin
   }
   protected function init()
   {
-    if( !$_SERVER['REQUEST_METHOD'] == 'POST' || !isset($_POST['_action']) ) return;
+    if( $_SERVER['REQUEST_METHOD'] != 'POST' || !isset($_POST['_action']) ) return;
     if( !wp_verify_nonce($_POST['_action'], 'download_promotion_entries') ) return;
     
     if( !current_user_can('download_promotion_entries') ) {
@@ -29,13 +29,14 @@ class PromotionsDashboard_Download extends Snap_Wordpress_Plugin
       return;
     }
     
-    $this->is_download = true;
     $this->promotion = $promotion;
     $now = Snap::inst('Promotions_Functions')->now();
     
     global $post;
     $post = $promotion;
     setup_postdata( $post );
+    
+    $this->is_download = true;
   }
   
   /**
@@ -45,6 +46,9 @@ class PromotionsDashboard_Download extends Snap_Wordpress_Plugin
   public function download()
   {
     if( !$this->is_download ) return;
+    
+    if( !apply_filters('promotions/download/continue', true, $this->promotion->ID ) )
+      return;
     
     
     $now = Snap::inst('Promotions_Functions')->now();
@@ -136,7 +140,8 @@ SQL;
       else {
         if( $parts[0] == 'meta' ){
           $property = $parts[1];
-          $values[] = get_post_meta( $obj->ID, $property, true);
+          $value = get_post_meta( $obj->ID, $property, true);
+          $values[] = apply_filters('promotions/registration/meta/fetch_from_db', $value, $property, $obj->ID);
         }
       }
     }
