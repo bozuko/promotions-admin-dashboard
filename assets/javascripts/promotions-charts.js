@@ -136,7 +136,7 @@ jQuery(function($){
         dataSource: this.data,
         commonSeriesSettings : {
           argumentField : 'start',
-          type: series[0].length > 6 ? 'stackedArea' : "stackedBar"
+          type: this.data.length > 6 ? 'stackedArea' : "stackedBar"
         },
         series : series,
         legend: {
